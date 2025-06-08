@@ -1,53 +1,78 @@
-import Link from "next/link";
+'use client';
 
-import { LatestPost } from "~/app/_components/post";
-import { api, HydrateClient } from "~/trpc/server";
+import { useState } from 'react';
 
-export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
+type Post = {
+  image: string;
+  caption: string;
+  url: string;
+  likes: number;
+};
 
-  void api.post.getLatest.prefetch();
+export default function HomePage() {
+  const [username, setUsername] = useState('');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchPosts = async () => {
+    if (!username) return;
+    setLoading(true);
+    setError('');
+    setPosts([]);
+
+    try {
+      const res = await fetch(`/api/scrape?username=${username}`);
+      const data = await res.json();
+      if (res.ok) {
+        setPosts(data);
+      } else {
+        setError(data.error || 'Error');
+      }
+    } catch (err) {
+      setError('Error al conectar con el servidor');
+    }
+
+    setLoading(false);
+  };
 
   return (
-    <HydrateClient>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-          </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/usage/first-steps"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">First Steps →</h3>
-              <div className="text-lg">
-                Just the basics - Everything you need to know to set up your
-                database and authentication.
-              </div>
-            </Link>
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/introduction"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">Documentation →</h3>
-              <div className="text-lg">
-                Learn more about Create T3 App, the libraries it uses, and how
-                to deploy it.
-              </div>
-            </Link>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              {hello ? hello.greeting : "Loading tRPC query..."}
-            </p>
-          </div>
+    <main className="max-w-2xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6 text-center">
+        Instagram Top Posts MVP
+      </h1>
 
-          <LatestPost />
-        </div>
-      </main>
-    </HydrateClient>
+      <div className="flex gap-2 mb-4">
+        <input
+          className="flex-1 border p-2 rounded"
+          placeholder="Usuario de Instagram"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <button
+          onClick={fetchPosts}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          {loading ? 'Buscando...' : 'Buscar'}
+        </button>
+      </div>
+
+      {error && <p className="text-red-500 mb-4">{error}</p>}
+
+      <div className="grid gap-4">
+        {posts.map((post, i) => (
+          <div
+            key={i}
+            className="border p-4 rounded shadow hover:shadow-lg transition"
+          >
+            <a href={post.url} target="_blank" rel="noopener noreferrer">
+              <img src={post.image} alt="Post" className="w-full max-w-md" />
+            </a>
+            <p className="mt-2 font-semibold text-lg">❤️ {post.likes} likes</p>
+            <p className="text-sm text-gray-700">{post.caption}</p>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }
